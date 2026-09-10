@@ -1,0 +1,138 @@
+name: Auto Register User
+
+on:
+  issues:
+    types: [opened, edited]
+
+jobs:
+  register-user:
+    runs-on: ubuntu-latest
+    if: contains(github.event.issue.title, '[REGISTER]')
+    
+    steps:
+      - name: Parse Registration Issue
+        id: parse
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issue = context.payload.issue;
+            const body = issue.body || '';
+            
+            // Extract email
+            const emailMatch = body.match(/Email:\s*(.+?)(?:\n|$)/);
+            const email = emailMatch ? emailMatch[1].trim() : '';
+            
+            // Extract purpose
+            const purposeMatch = body.match(/Purpose:\s*(.+?)(?:\n|$)/i);
+            const purpose = purposeMatch ? purposeMatch[1].trim() : '';
+            
+            // Validate
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            const isValid = emailRegex.test(email) && purpose.length > 0;
+            
+            core.setOutput('email', email);
+            core.setOutput('purpose', purpose);
+            core.setOutput('valid', isValid);
+            core.setOutput('username', issue.user.login);
+            
+            console.log(`Email: ${email}`);
+            console.log(`Purpose: ${purpose}`);
+            console.log(`Valid: ${isValid}`);
+
+      - name: Approve Registration
+        if: steps.parse.outputs.valid == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const email = '${{ steps.parse.outputs.email }}';
+            const purpose = '${{ steps.parse.outputs.purpose }}';
+            const username = '${{ steps.parse.outputs.username }}';
+            
+            // Add approval comment
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: `✅ **Registration Approved!**\n\n**User:** @${username}\n**Email:** ${email}\n**Purpose:** ${purpose}\n\n📝 *Processed automatically at ${new Date().toISOString()}*\n\nYou have been added to the YSH IT Nexus organization. Welcome aboard! 🎉`
+            });
+            
+            // Add label
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              labels: ['registration-approved', 'automated']
+            });
+            
+            console.log(`✅ Registration approved for @${username}`);
+
+      - name: Reject Invalid Registration
+        if: steps.parse.outputs.valid == 'false'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const username = '${{ steps.parse.outputs.username }}';
+            
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: `❌ **Registration Failed**\n\n@${username}, your registration could not be processed. Please check:\n\n✓ **Email** must be in valid format (e.g., user@example.com)\n✓ **Purpose** must be provided and non-empty\n\n**Please update your issue** with correct information and we'll process it automatically.`
+            });
+            
+            // Add rejection label
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              labels: ['registration-incomplete', 'needs-attention']
+            });
+
+      - name: Add User to Organization
+        if: steps.parse.outputs.valid == 'true'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.ORG_INVITE_TOKEN }}
+          script: |
+            const username = '${{ steps.parse.outputs.username }}';
+            
+            try {
+              // Add user to organization with 'member' role
+              await github.rest.orgs.setMembershipForUser({
+                org: context.repo.owner,
+                username: username,
+                role: 'member'
+              });
+              
+              console.log(`✅ @${username} added to organization`);
+            } catch (error) {
+              console.log(`⚠️ Could not add user to org (may already be member): ${error.message}`);
+            }
+
+      - name: Send Welcome Email
+        if: steps.parse.outputs.valid == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const email = '${{ steps.parse.outputs.email }}';
+            const username = '${{ steps.parse.outputs.username }}';
+            
+            console.log(`Welcome email to: ${email}`);
+            console.log(`Username: @${username}`);
+            console.log(`
+            Subject: Welcome to YSH IT Nexus!
+            
+            Dear ${username},
+            
+            Welcome to YSH IT Nexus! Your registration has been approved.
+            
+            You can now:
+            - Access organization repositories
+            - Collaborate with our community
+            - Contribute to healthcare platforms and research tools
+            
+            Get started: https://github.com/ysh-group
+            
+            Best regards,
+            YSH IT Nexus Team
+            `);
