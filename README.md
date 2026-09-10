@@ -3,10 +3,10 @@
 ![Auto invitation](https://github.com/ysh-group/demo-repository/actions/workflows/auto-register-user.yml/badge.svg)
 
 
-![YSH GROUP Banner](https://user-images.githubusercontent.com/65373279/116761730-055f0000-aa36-11eb-80b0-96f321958926.png)
-# **Design and Code**
+![YSH GROUP Banner](https://github.com/ysh-group/collaboration/blob/main/images/YSH-banner.png)
+# **YSH IT Nexus**
 
-Welcome to Design & Code where anyone interested in contributing health-apps and not only learn but also collaborate on various projects!
+Welcome to YSH IT Nexus where anyone interested in contributing health-apps and not only learn but also collaborate on various projects!
 
 <p align="left">
 <a href="mailto:david.dev100@outlook.com" style="text-decoration:none">
