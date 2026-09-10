@@ -11,6 +11,10 @@ jobs:
       issues: write
       pull-requests: write
     steps:
+    
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
     - name: 'Auto-assign issue to team'
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
