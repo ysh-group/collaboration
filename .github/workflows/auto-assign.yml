@@ -2,8 +2,8 @@ name: Auto Assign
 on:
   issues:
     types: [opened]
-  pull_request:
-    types: [opened]
+  #pull_request:
+    #types: [opened]
 jobs:
   run:
     runs-on: ubuntu-latest
@@ -15,5 +15,5 @@ jobs:
       uses: pozil/auto-assign-issue@v1
       with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
-          assignees: YSHgroup
+          assignees: root
           numOfAssignee: 1
