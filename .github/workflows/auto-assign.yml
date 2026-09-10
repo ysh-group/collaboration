@@ -11,13 +11,11 @@ jobs:
       issues: write
       pull-requests: write
     steps:
-    
-    - name: Checkout repository
-      uses: actions/checkout@v4
-      
-    - name: 'Auto-assign issue to team'
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: |
-        gh issue edit ${{ github.event.issue.number }} --add-assignee @ysh-group/root
+      - name: 'Auto-assign issue'
+        uses: pozil/auto-assign-issue@v4
+        with:
+            repo-token: ${{ secrets.GITHUB_TOKEN }}
+            teams: root
+            numOfAssignee: 1
+
 
