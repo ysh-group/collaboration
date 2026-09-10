@@ -36,7 +36,7 @@ jobs:
             core.setOutput('username', issue.user.login);
             
             console.log(`Email: ${email}`);
-            console.log(`Purpose: ${purpose}`);
+            # console.log(`Purpose: ${purpose}`);
             console.log(`Valid: ${isValid}`);
 
       - name: Approve Registration
@@ -53,7 +53,7 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.issue.number,
-              body: `✅ **Registration Approved!**\n\n**User:** @${username}\n**Email:** ${email}\n**Purpose:** ${purpose}\n\n📝 *Processed automatically at ${new Date().toISOString()}*\n\nYou have been added to the YSH IT Nexus organization. Welcome aboard! 🎉`
+              
             });
             
             // Add label
