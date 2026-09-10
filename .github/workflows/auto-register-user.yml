@@ -57,7 +57,7 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.issue.number,
-              body: `✅ **Registration Approved!**\n\n**User:** @${username}\n**Email:** ${email}\n**Purpose:** ${purpose}\n\n📝 *Processed automatically at ${new Date().toISOString()}*\n\nYou have been added to the YSH IT Nexus organization. Welcome aboard! 🎉`
+              body: `✅ **Registration Approved!**\n\n**User:** @${username}\n**Email:** ${email}\n**Purpose:** ${purpose}\n\n📝 *Processed automatically at ${new Date().toISOString()}*\n\nYou have been invited to the YSH IT Nexus organization. \n**Don''t forget to accept the invitation sent through mail or [HERE](https://github.com/orgs/ysh-group/invitation).** \nWelcome aboard! 🎉`
             });
             
             // Add label
