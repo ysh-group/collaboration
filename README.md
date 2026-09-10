@@ -41,9 +41,8 @@ Welcome to YSH IT Nexus where anyone interested in contributing health-apps and 
       
 ### Steps to join The Design and Code Github Organization:
 
-1. **Go to** [Issues in this repository](https://github.com/ysh-group/collaboration)
-2. **Click** "New issue"
-3. **Use this template** for the issue title and description:
+1. **Go to** [Create an issue here](https://github.com/ysh-group/collaboration/issues/new)
+2. **Use this template** for the issue title and description:
 
 **Title format:**
 ```
