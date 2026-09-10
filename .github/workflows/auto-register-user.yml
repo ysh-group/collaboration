@@ -45,7 +45,7 @@ jobs:
         with:
           script: |
             const email = "${{ steps.parse.outputs.email }}";
-            const purpose = "${{ toJSON(steps.parse.outputs.purpose) }}";
+            const purpose = "${{ steps.parse.outputs.purpose }}";
             const username = "${{ steps.parse.outputs.username }}";
             
             // Add approval comment
@@ -71,7 +71,7 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const username = steps.parse.outputs.username;
+            const username = "${{ steps.parse.outputs.username }}";
             
             await github.rest.issues.createComment({
               owner: context.repo.owner,
@@ -94,7 +94,7 @@ jobs:
         with:
           github-token: ${{ secrets.ORG_INVITE_TOKEN }}
           script: |
-            const username = steps.parse.outputs.username;
+            const username = "${{ steps.parse.outputs.username }}";
             
             try {
               // Add user to organization with 'member' role
