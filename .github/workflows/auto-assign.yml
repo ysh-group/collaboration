@@ -11,9 +11,9 @@ jobs:
       issues: write
       pull-requests: write
     steps:
-    - name: 'Auto-assign issue'
-      uses: pozil/auto-assign-issue@v1
-      with:
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-          assignees: ysh-group/teams/root
-          numOfAssignee: 1
+    - name: 'Auto-assign issue to team'
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        gh issue edit ${{ github.event.issue.number }} --add-assignee @ysh-group/root
+
