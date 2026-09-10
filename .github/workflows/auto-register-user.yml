@@ -119,20 +119,22 @@ jobs:
             
             console.log(`Welcome email to: ${email}`);
             console.log(`Username: @${username}`);
-            console.log(`
-            Subject: Welcome to YSH IT Nexus!
-            
-            Dear ${username},
-            
-            Welcome to YSH IT Nexus! Your registration has been approved.
-            
-            You can now:
-            - Access organization repositories
-            - Collaborate with our community
-            - Contribute to healthcare platforms and research tools
-            
-            Get started: https://github.com/ysh-group
-            
-            Best regards,
-            YSH IT Nexus Team
-            `);
+
+            const welcomeMessage = `
+              Subject: Welcome to YSH IT Nexus!
+      
+               Dear ${username},
+      
+              Welcome to YSH IT Nexus! Your registration has been approved.
+      
+              You can now:
+              - Access organization repositories
+              - Collaborate with our community
+              - Contribute to healthcare platforms and research tools
+      
+              Get started: https://github.com/ysh-group
+      
+              Best regards,
+              YSH IT Nexus Team
+              `;
+            console.log(welcomeMessage);
