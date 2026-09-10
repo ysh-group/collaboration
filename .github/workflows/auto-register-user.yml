@@ -3,7 +3,11 @@ name: Auto Register User
 on:
   issues:
     types: [opened, edited]
-
+    
+permissions:
+  issues: write
+  contents: read
+  
 jobs:
   register-user:
     runs-on: ubuntu-latest
