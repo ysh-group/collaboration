@@ -32,9 +32,9 @@ body:
     validations:
       required: false
   - type: textarea
-    id: Additional (Required)
+    id: Additional
     attributes:
-      label: Additional Context
+      label: Additional Context (Required)
       description: Where did you meet The YSH Group? What do you like about this community/Why do you want to join?
     validations:
       required: true
