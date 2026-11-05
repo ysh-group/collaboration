@@ -1,4 +1,5 @@
-name: Invite User to YSH-Group
+
+name: Auto Invite User
 
 on:
   issues:
@@ -6,109 +7,253 @@ on:
 
 permissions:
   issues: write
+  contents: read
 
 jobs:
   invite-user:
     runs-on: ubuntu-latest
-    if: ${{ contains(github.event.issue.labels.*.name, 'Invitation to the community') && !contains(github.event.issue.labels.*.name, 'invitation-approved') }}
-    concurrency:
-      group: invitation-issue-${{ github.event.issue.number }}
-      cancel-in-progress: false
+
+    # Only process invitation issues
+    if: github.event.issue.title == 'Please invite me to The YSH Group GitHub Organization'
 
     steps:
-      - name: Parse Invitation Issue
+      # 1. Parse Invitation Issue
+      - name: Parse Invitation Details
         id: parse
         uses: actions/github-script@v7
         with:
           script: |
             const issue = context.payload.issue;
-            const lines = (issue.body || '').split(/\r?\n/);
+            const body = issue.body || '';
 
-            function getField(label) {
-              const heading = `### ${label}`;
-              const start = lines.findIndex(line => line.trim() === heading);
-              if (start === -1) return '';
+            // Extract fields from GitHub Issue Form Markdown
+            function extractField(label) {
+              const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-              let end = lines.findIndex((line, index) =>
-                index > start && /^###\s+/.test(line.trim())
+              const regex = new RegExp(
+                `### ${escaped}\\s*\\n+([\\s\\S]*?)(?=\\n### |$)`,
+                'i'
               );
-              if (end === -1) end = lines.length;
 
-              const value = lines.slice(start + 1, end).join('\n').trim();
-              return /^_No response_$/i.test(value) ? '' : value;
+              const match = body.match(regex);
+
+              if (!match) return '';
+
+              const value = match[1].trim();
+
+              if (
+                !value ||
+                value === '_No response_' ||
+                value === 'No response'
+              ) {
+                return '';
+              }
+
+              return value;
             }
 
-            const name = getField('Name (Required)');
-            const email = getField('Email (Required)');
-            const additionalContext = getField('Additional Context (Required)');
+            const name = extractField('Name (Required)');
+            const email = extractField('Email (Required)');
+            const linkedin = extractField('LinkedIn Profile (if applicable)');
+            const twitter = extractField('Twitter Username (if applicable)');
+            const additional = extractField('Additional Context (Required)');
+
+            const username = issue.user.login;
+
+            // Validate email and required fields
             const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-            const isValid = name.length > 0 && emailRegex.test(email) && additionalContext.length > 0;
+
+            const isValid =
+              name.length > 0 &&
+              emailRegex.test(email) &&
+              additional.length > 0;
 
             core.setOutput('name', name);
             core.setOutput('email', email);
-            core.setOutput('username', issue.user.login);
+            core.setOutput('linkedin', linkedin);
+            core.setOutput('twitter', twitter);
+            core.setOutput('additional', additional);
+            core.setOutput('username', username);
             core.setOutput('valid', String(isValid));
-            console.log(`Invitation details valid: ${isValid}`);
 
-      - name: Send Organization Invitation
+            console.log(`Username: ${username}`);
+            console.log(`Email: ${email}`);
+            console.log(`Valid: ${isValid}`);
+
+      # 2. Approve Invitation
+      - name: Approve Invitation
         if: steps.parse.outputs.valid == 'true'
         uses: actions/github-script@v7
         env:
-          INVITEE_EMAIL: ${{ steps.parse.outputs.email }}
+          NAME: ${{ steps.parse.outputs.name }}
+          EMAIL: ${{ steps.parse.outputs.email }}
+          LINKEDIN: ${{ steps.parse.outputs.linkedin }}
+          TWITTER: ${{ steps.parse.outputs.twitter }}
+          ADDITIONAL: ${{ steps.parse.outputs.additional }}
+          USERNAME: ${{ steps.parse.outputs.username }}
         with:
-          github-token: ${{ secrets.ORG_INVITE_TOKEN }}
           script: |
-            await github.rest.orgs.createInvitation({
-              org: context.repo.owner,
-              email: process.env.INVITEE_EMAIL,
-              role: 'direct_member'
-            });
-            console.log('Organization invitation sent.');
+            const {
+              NAME,
+              EMAIL,
+              LINKEDIN,
+              TWITTER,
+              ADDITIONAL,
+              USERNAME
+            } = process.env;
 
-      - name: Confirm Invitation
-        if: steps.parse.outputs.valid == 'true'
-        uses: actions/github-script@v7
-        env:
-          INVITEE_NAME: ${{ steps.parse.outputs.name }}
-          INVITEE_EMAIL: ${{ steps.parse.outputs.email }}
-          GITHUB_USERNAME: ${{ steps.parse.outputs.username }}
-        with:
-          script: |
+            const issue = context.issue;
+
+            const comment = `
+            ## ✅ Invitation Request Approved!
+
+            **Name:** ${NAME}
+
+            **GitHub Username:** @${USERNAME}
+
+            **Email:** ${EMAIL}
+
+            **LinkedIn:** ${LINKEDIN || 'Not provided'}
+
+            **Twitter:** ${TWITTER || 'Not provided'}
+
+            **Additional Context:**
+
+            ${ADDITIONAL}
+
+            ---
+
+            🎉 Your invitation request has been processed!
+
+            You should receive an invitation to join the YSH Group GitHub Organization.
+
+            **Don't forget to accept your invitation through your email or [HERE](https://github.com/orgs/ysh-group/invitation).**
+
+            Welcome to the YSH Group community!
+            `;
+
             await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              body: `✅ **Invitation sent!**\n\nHi ${process.env.INVITEE_NAME}, an invitation to the YSH-Group GitHub organization has been sent to **${process.env.INVITEE_EMAIL}**. Please accept it using the email from GitHub.\n\nGitHub account: @${process.env.GITHUB_USERNAME}`
+              owner: issue.owner,
+              repo: issue.repo,
+              issue_number: issue.number,
+              body: comment
             });
 
             await github.rest.issues.addLabels({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              labels: ['invitation-approved', 'automated']
+              owner: issue.owner,
+              repo: issue.repo,
+              issue_number: issue.number,
+              labels: [
+                'invitation-approved',
+                'automated'
+              ]
             });
 
-      - name: Reject Invalid Invitation Request
+            console.log(`Invitation processed for @${USERNAME}`);
+
+      # 3. Reject Invalid Invitation
+      - name: Reject Invalid Invitation
         if: steps.parse.outputs.valid == 'false'
         uses: actions/github-script@v7
         env:
-          GITHUB_USERNAME: ${{ steps.parse.outputs.username }}
+          USERNAME: ${{ steps.parse.outputs.username }}
         with:
           script: |
+            const username = process.env.USERNAME;
+
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.issue.number,
-              body: `❌ **Invitation request needs attention**\n\n@${process.env.GITHUB_USERNAME}, please edit the issue and provide your name, a valid email address, and the required Additional Context.`
+              body: `
+            ## ❌ Invitation Request Incomplete
+
+            @${username}, your invitation request could not be processed.
+
+            Please check that you have provided:
+
+            - **Name:** Required
+            - **Email:** A valid email address
+            - **Additional Context:** Required
+
+            Please update your issue with the missing or incorrect information.
+
+            Once corrected, the workflow will automatically process your request.
+              `
             });
 
             await github.rest.issues.addLabels({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.issue.number,
-              labels: ['invitation-incomplete', 'needs-attention']
+              labels: [
+                'invitation-incomplete',
+                'needs-attention'
+              ]
             });
 
+      # 4. Add User to GitHub Organization
+      - name: Add User to Organization
+        if: steps.parse.outputs.valid == 'true'
+        uses: actions/github-script@v7
+        env:
+          USERNAME: ${{ steps.parse.outputs.username }}
+        with:
+          github-token: ${{ secrets.ORG_INVITE_TOKEN }}
+          script: |
+            const username = process.env.USERNAME;
+
+            try {
+              await github.rest.orgs.setMembershipForUser({
+                org: 'ysh-group',
+                username: username,
+                role: 'member'
+              });
+
+              console.log(`Successfully added @${username} to organization`);
+
+            } catch (error) {
+              core.setFailed(
+                `Could not add @${username} to organization: ${error.message}`
+              );
+            }
+
+      # 5. Send Welcome Email (Logging Placeholder)
+      - name: Prepare Welcome Email
+        if: steps.parse.outputs.valid == 'true'
+        uses: actions/github-script@v7
+        env:
+          EMAIL: ${{ steps.parse.outputs.email }}
+          USERNAME: ${{ steps.parse.outputs.username }}
+          NAME: ${{ steps.parse.outputs.name }}
+        with:
+          script: |
+            const { EMAIL, USERNAME, NAME } = process.env;
+
+            const welcomeMessage = `
+            Subject: Welcome to YSH Group!
+
+            Dear ${NAME},
+
+            Welcome to YSH Group!
+
+            Your invitation request has been approved.
+
+            You can now:
+            - Access organization repositories
+            - Collaborate with our community
+            - Contribute to our projects
+
+            Get started: https://github.com/ysh-group
+
+            Best regards,
+            YSH Group Team
+            `;
+
+            console.log(`Welcome email prepared for ${EMAIL}`);
+            console.log(welcomeMessage);
+
+      # 6. Close Invitation Issue
       - name: Close Invitation Issue
         if: steps.parse.outputs.valid == 'true'
         uses: actions/github-script@v7
@@ -121,3 +266,5 @@ jobs:
               state: 'closed',
               state_reason: 'completed'
             });
+
+            console.log('Invitation issue closed successfully');
