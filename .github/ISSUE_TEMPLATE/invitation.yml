@@ -6,14 +6,14 @@ body:
   - type: input
     id: name
     attributes:
-      label: Name
+      label: Name (Required)
       placeholder: Insert your name here
     validations:
       required: true
   - type: input
     id: Email
     attributes:
-      label: Email (if applicable)
+      label: Email (Required)
       placeholder: Insert your email here
     validations:
       required: true
@@ -32,7 +32,7 @@ body:
     validations:
       required: false
   - type: textarea
-    id: Additional
+    id: Additional (Required)
     attributes:
       label: Additional Context
       description: Where did you meet The YSH Group? What do you like about this community/Why do you want to join?
