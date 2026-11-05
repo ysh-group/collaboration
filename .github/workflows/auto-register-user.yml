@@ -1,149 +1,109 @@
-name: Auto Register User
+name: Invite User to YSH-Group
 
 on:
   issues:
     types: [opened, edited]
-    
+
 permissions:
   issues: write
   contents: read
-  
+
 jobs:
-  register-user:
+  invite-user:
     runs-on: ubuntu-latest
-    if: contains(github.event.issue.title, '[REGISTER]')
-    
+    if: ${{ contains(github.event.issue.labels.*.name, 'Invitation to the community') && !contains(github.event.issue.labels.*.name, 'invitation-approved') }}
+
     steps:
-      - name: Parse Registration Issue
+      - name: Parse Invitation Issue
         id: parse
         uses: actions/github-script@v7
         with:
           script: |
             const issue = context.payload.issue;
             const body = issue.body || '';
-            
-            // Extract email
-            const emailMatch = body.match(/Email:\s*(.+?)(?:\n|$)/);
-            const email = emailMatch ? emailMatch[1].trim() : '';
-            
-            // Extract purpose
-            const purposeMatch = body.match(/Purpose:\s*(.+?)(?:\n|$)/i);
-            const purpose = purposeMatch ? purposeMatch[1].trim() : '';
-            
-            // Validate
-            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-            const isValid = emailRegex.test(email) && purpose.length > 0;
-            
+
+            function getField(label) {
+              const escapedLabel = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+              const field = body.match(new RegExp(`^### ${escapedLabel}\\s*\\r?\\n([\\s\\S]*?)(?=\\r?\\n### |$)`, 'm'));
+              if (!field) return '';
+              const value = field[1].trim();
+              return /^_No response_$/i.test(value) ? '' : value;
+            }
+
+            const name = getField('Name (Required)');
+            const email = getField('Email (Required)');
+            const context = getField('Additional Context (Required)');
+            const emailRegex = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/;
+            const isValid = name.length > 0 && emailRegex.test(email) && context.length > 0;
+
+            core.setOutput('name', name);
             core.setOutput('email', email);
-            core.setOutput('purpose', purpose);
-            core.setOutput('valid', isValid);
+            core.setOutput('additional_context', context);
             core.setOutput('username', issue.user.login);
-            
-            console.log(`Email: ${email}`);
-            // console.log(`Purpose: ${purpose}`);
-            console.log(`Valid: ${isValid}`);
+            core.setOutput('valid', isValid);
+            console.log(`Invitation details valid: ${isValid}`);
 
-      - name: Approve Registration
+      - name: Send Organization Invitation
+        id: invite
         if: steps.parse.outputs.valid == 'true'
         uses: actions/github-script@v7
-        with:
-          script: |
-            const email = "${{ steps.parse.outputs.email }}";
-            const purpose = "${{ steps.parse.outputs.purpose }}";
-            const username = "${{ steps.parse.outputs.username }}";
-            
-            // Add approval comment
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              body: `✅ **Registration Approved!**\n\n**User:** @${username}\n**Email:** ${email}\n**Purpose:** ${purpose}\n\n📝 *Processed automatically at ${new Date().toISOString()}*\n\nYou have been invited to the YSH IT Nexus organization. \n**Don''t forget to accept the invitation sent through mail or [HERE](https://github.com/orgs/ysh-group/invitation).** \nWelcome aboard! 🎉`
-            });
-            
-            // Add label
-            await github.rest.issues.addLabels({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              labels: ['registration-approved', 'automated']
-            });
-            
-            console.log(`✅ Registration approved for @${username}`);
-
-      - name: Reject Invalid Registration
-        if: steps.parse.outputs.valid == 'false'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const username = "${{ steps.parse.outputs.username }}";
-            
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              body: `❌ **Registration Failed**\n\n@${username}, your registration could not be processed. Please check:\n\n✓ **Email** must be in valid format (e.g., user@example.com)\n✓ **Purpose** must be provided and non-empty\n\n**Please update your issue** with correct information and we'll process it automatically.`
-            });
-            
-            // Add rejection label
-            await github.rest.issues.addLabels({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              labels: ['registration-incomplete', 'needs-attention']
-            });
-
-      - name: Add User to Organization
-        if: steps.parse.outputs.valid == 'true'
-        uses: actions/github-script@v7
+        env:
+          INVITEE_EMAIL: ${{ steps.parse.outputs.email }}
         with:
           github-token: ${{ secrets.ORG_INVITE_TOKEN }}
           script: |
-            const username = "${{ steps.parse.outputs.username }}";
-            
-            try {
-              // Add user to organization with 'member' role
-              await github.rest.orgs.setMembershipForUser({
-                org: context.repo.owner,
-                username: username,
-                role: 'member'
-              });
-              
-              console.log(`✅ @${username} added to organization`);
-            } catch (error) {
-              console.log(`⚠️ Could not add user to org (may already be member): ${error.message}`);
-            }
+            await github.rest.orgs.createInvitation({
+              org: context.repo.owner,
+              email: process.env.INVITEE_EMAIL,
+              role: 'direct_member'
+            });
+            console.log('Organization invitation sent.');
 
-      - name: Send Welcome Email
+      - name: Confirm Invitation
         if: steps.parse.outputs.valid == 'true'
         uses: actions/github-script@v7
+        env:
+          INVITEE_NAME: ${{ steps.parse.outputs.name }}
+          INVITEE_EMAIL: ${{ steps.parse.outputs.email }}
+          GITHUB_USERNAME: ${{ steps.parse.outputs.username }}
         with:
           script: |
-            const email = "${{ steps.parse.outputs.email }}";
-            const username = "${{ steps.parse.outputs.username }}";
-            
-            console.log(`Welcome email to: ${email}`);
-            console.log(`Username: @${username}`);
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: `✅ **Invitation sent!**\n\nHi ${process.env.INVITEE_NAME}, an invitation to the YSH-Group GitHub organization has been sent to **${process.env.INVITEE_EMAIL}**. Please accept it using the email from GitHub.\n\nGitHub account: @${process.env.GITHUB_USERNAME}`
+            });
 
-            const welcomeMessage = `
-              Subject: Welcome to YSH IT Nexus!
-      
-               Dear ${username},
-      
-              Welcome to YSH IT Nexus! Your registration has been approved.
-      
-              You can now:
-              - Access organization repositories
-              - Collaborate with our community
-              - Contribute to healthcare platforms and research tools
-      
-              Get started: https://github.com/ysh-group
-      
-              Best regards,
-              YSH IT Nexus Team
-              `;
-            console.log(welcomeMessage);
-            
-      - name: Close Registration Issue
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              labels: ['invitation-approved', 'automated']
+            });
+
+      - name: Reject Invalid Invitation Request
+        if: steps.parse.outputs.valid == 'false'
+        uses: actions/github-script@v7
+        env:
+          GITHUB_USERNAME: ${{ steps.parse.outputs.username }}
+        with:
+          script: |
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: `❌ **Invitation request needs attention**\n\n@${process.env.GITHUB_USERNAME}, please edit the issue and provide a valid email address, your name, and the required Additional Context.`
+            });
+
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              labels: ['invitation-incomplete', 'needs-attention']
+            });
+
+      - name: Close Invitation Issue
         if: steps.parse.outputs.valid == 'true'
         uses: actions/github-script@v7
         with:
@@ -155,5 +115,3 @@ jobs:
               state: 'closed',
               state_reason: 'completed'
             });
-            
-            console.log(`✅ Registration issue closed`);
