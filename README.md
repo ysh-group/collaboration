@@ -37,32 +37,11 @@ Welcome to YSH IT Nexus where anyone interested in contributing health-apps and 
 
 > Raise an issue to join the **YSH IT Nexus** GitHub Community.
 
-     
       
 ### Steps to join The Design and Code Github Organization:
 
-1. **Go to** [Create an issue here](https://github.com/ysh-group/collaboration/issues/new)
-2. **Use this template** for the issue title and description:
-
-**Title format:**
-```
-[REGISTER] Your Name
-```
-
-**Description (include all fields):**
-```
-Email: your.email@example.com
-Purpose: Briefly describe why you want to join YSH IT Nexus (e.g., "Contributing to healthcare platform", "Participating in research", "Learning about privacy-first systems")
-```
-
-### Example
-```
-Title: [REGISTER] Jane Smith
-
-Description:
-Email: jane.smith@example.com
-Purpose: I'm a healthcare researcher interested in contributing to privacy-preserving data workflows and collaborating on FHIR integration.
-```
+1. **Go to** [Create an issue here](https://github.com/ysh-group/collaboration/issues/new?template=invitation.yml)
+2. **Fill out the form and submit.**
 
 ### How do I set the Organization to Public?
 
